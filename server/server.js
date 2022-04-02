@@ -49,8 +49,7 @@ io.on('connection', (socket) => {
 		}
 		joinRoom(roomid, socket.id);
 		socket.join(roomid);
-		socket.emit('connected');
-		socket.broadcast.to(`${roomid}`).emit('player-2-connected');
+		io.to(`${roomid}`).emit('connected');
 		socket.emit('your-move', 'O');
 	});
 

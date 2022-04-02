@@ -10,9 +10,8 @@ const LoginMessasge = document.getElementById('message');
 const loginPage = document.getElementById('loginPage');
 
 const turn = document.getElementById('turn');
-var map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
 
-const winCon = [
+const winConditions = [
 	[0, 1, 2],
 	[3, 4, 5],
 	[6, 7, 8],
@@ -22,14 +21,52 @@ const winCon = [
 	[0, 4, 8],
 	[2, 4, 6],
 ];
+var map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
 var isMyTurn = false;
 var myMove;
 var roomId;
 
-//socket
+/////socket
+const socket = io('http://localhost:3000');
 
-const socket = io('https://xoxserver.herokuapp.com/');
+// catch message from server
+socket.on('message', (message) => {
+	LoginMessasge.innerText = message;
+});
 
+//set player "X" or "O" from server
+//X will start First
+socket.on('your-move', (move) => {
+	myMove = move;
+	if (myMove == 'X') swapTurn();
+});
+
+// if all players connected hide the login page start the game
+socket.on('connected', () => {
+	console.log('a');
+	loginPage.classList.add('hide');
+});
+
+//reset the game
+socket.on('reset', () => {
+	console.log('restart');
+	restartPage.classList.remove('show');
+	map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
+	startGame();
+});
+
+//When put X or O to the map
+//players get updated map from server
+socket.on('new-map', (newMap) => {
+	allCells.forEach((cell) => {
+		cell.innerText = newMap[cell.classList[1]];
+	});
+	map = newMap;
+	swapTurn();
+	checkIsGameFinished();
+});
+
+/////event listeners
 createRoomBtn.addEventListener('click', () => {
 	roomId = roomIdInput.value.trim();
 	socket.emit('create-room', roomId);
@@ -40,37 +77,8 @@ joinRoomBtn.addEventListener('click', () => {
 	socket.emit('join-room', roomId);
 });
 
-socket.on('message', (message) => {
-	LoginMessasge.innerText = message;
-});
-socket.on('your-move', (move) => {
-	myMove = move;
-});
-socket.on('connected', () => {
-	loginPage.classList.add('hide');
-});
-
-socket.on('player-2-connected', () => {
-	loginPage.classList.add('hide');
-	console.log('a');
-	isMyTurn = !isMyTurn;
-});
-
-socket.on('new-map', (newMap) => {
-	map = newMap;
-	isMyTurn = !isMyTurn;
-	console.log(map);
-	allCells.forEach((cell) => {
-		cell.innerText = newMap[cell.classList[1]];
-	});
-	isfinishGame();
-});
-
-socket.on('reset', () => {
-	console.log('restart');
-	restartPage.classList.remove('show');
-	map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
-	startGame();
+restartBtn.addEventListener('click', () => {
+	socket.emit('reset', roomId);
 });
 
 startGame();
@@ -94,19 +102,17 @@ function updateMap(e) {
 	let index = e.target.classList[1];
 	if (map[index] == ' ') map[index] = myMove;
 	socket.emit('move', index, roomId);
-	isMyTurn = !isMyTurn;
-
-	isfinishGame();
+	swapTurn();
+	checkIsGameFinished();
 }
 
-function isfinishGame() {
-	let winner = checkWin();
+function checkIsGameFinished() {
+	let winner = findWinner();
 	let haveEmptyCell = map.some((row) => row.includes(' '));
 	if (!haveEmptyCell) {
 		if (!winner) {
 			winnerText.innerText = 'DRAW !';
 			restartPage.classList.add('show');
-			return 1;
 		}
 	} else {
 		if (winner) {
@@ -115,15 +121,17 @@ function isfinishGame() {
 				winnerText.innerText = 'You lost';
 			}
 			restartPage.classList.add('show');
-			return 1;
 		}
 	}
-	return 0;
 }
 
-function checkWin() {
+function swapTurn() {
+	isMyTurn = !isMyTurn;
+}
+
+function findWinner() {
 	let winner = '';
-	winCon.forEach((arr) => {
+	winConditions.forEach((arr) => {
 		const first = arr[0];
 		const second = arr[1];
 		const third = arr[2];
@@ -134,7 +142,3 @@ function checkWin() {
 	});
 	return winner;
 }
-
-restartBtn.addEventListener('click', () => {
-	socket.emit('reset', roomId);
-});
