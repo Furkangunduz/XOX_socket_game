@@ -34,8 +34,9 @@ io.on('connection', (socket) => {
 			return;
 		}
 		createRoom(roomid, socket.id);
-		rooms[roomid].map = ['', '', '', '', '', '', '', '', ''];
+		rooms[roomid].map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
 		socket.join(roomid);
+		socket.emit('room-created');
 		socket.emit('message', 'Waiting for player. . .');
 		socket.emit('your-move', 'X');
 	});
@@ -48,7 +49,8 @@ io.on('connection', (socket) => {
 		}
 		joinRoom(roomid, socket.id);
 		socket.join(roomid);
-		io.to(`${roomid}`).emit('player-2-connected', roomid);
+		socket.emit('connected');
+		socket.broadcast.to(`${roomid}`).emit('player-2-connected');
 		socket.emit('your-move', 'O');
 	});
 
@@ -63,8 +65,11 @@ io.on('connection', (socket) => {
 		rooms[roomid].map[index] = move;
 		socket.broadcast.to(`${roomid}`).emit('new-map', rooms[roomid].map); // send message to room except sender
 	});
-	server.on('restart', (roomid) => {
-		rooms[roomid].map = ['', '', '', '', '', '', '', '', ''];
-		socket.broadcast.to(`${roomid}`).emit('restart');
+	socket.on('reset', (roomid) => {
+		rooms[roomid].map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
+
+		console.log(rooms[roomid]);
+
+		io.to(`${roomid}`).emit('reset');
 	});
 });

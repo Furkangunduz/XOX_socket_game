@@ -9,7 +9,8 @@ const roomIdInput = document.getElementById('room-id');
 const LoginMessasge = document.getElementById('message');
 const loginPage = document.getElementById('loginPage');
 
-var map = ['', '', '', '', '', '', '', '', ''];
+const turn = document.getElementById('turn');
+var map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
 
 const winCon = [
 	[0, 1, 2],
@@ -21,13 +22,13 @@ const winCon = [
 	[0, 4, 8],
 	[2, 4, 6],
 ];
-var isMyTurn = true;
+var isMyTurn = false;
 var myMove;
 var roomId;
 
 //socket
 
-const socket = io('http://localhost:3000');
+const socket = io('https://xoxserver.herokuapp.com/');
 
 createRoomBtn.addEventListener('click', () => {
 	roomId = roomIdInput.value.trim();
@@ -45,71 +46,68 @@ socket.on('message', (message) => {
 socket.on('your-move', (move) => {
 	myMove = move;
 });
+socket.on('connected', () => {
+	loginPage.classList.add('hide');
+});
 
 socket.on('player-2-connected', () => {
 	loginPage.classList.add('hide');
-	startGame();
+	console.log('a');
+	isMyTurn = !isMyTurn;
 });
 
 socket.on('new-map', (newMap) => {
 	map = newMap;
+	isMyTurn = !isMyTurn;
 	console.log(map);
 	allCells.forEach((cell) => {
 		cell.innerText = newMap[cell.classList[1]];
 	});
-	isMyTurn = true;
 	isfinishGame();
 });
 
-socket.on('restart', () => {
-	startGame();
-});
-restartBtn.addEventListener('click', () => {
-	socket.emit('restart', roomId);
+socket.on('reset', () => {
+	console.log('restart');
+	restartPage.classList.remove('show');
+	map = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '];
 	startGame();
 });
 
 startGame();
 
 function startGame() {
-	restartPage.classList.remove('show');
-
-	map = ['', '', '', '', '', '', '', '', ''];
-
-	isMyTurn = true;
 	allCells.forEach((cell) => {
-		cell.innerHTML = '';
+		cell.innerHTML = ' ';
 		cell.removeEventListener('click', handleClick);
-		cell.addEventListener('click', handleClick, { once: true });
+		cell.addEventListener('click', handleClick);
 	});
 }
 
 function handleClick(e) {
-	if (isMyTurn && !e.target.innerHTML) {
+	if (isMyTurn && e.target.innerHTML === ' ') {
 		e.target.innerText = myMove;
 		updateMap(e, myMove);
-		isMyTurn = false;
 	}
 }
 
-async function updateMap(e) {
+function updateMap(e) {
 	let index = e.target.classList[1];
-	if (!map[index]) map[index] = myMove;
+	if (map[index] == ' ') map[index] = myMove;
 	socket.emit('move', index, roomId);
+	isMyTurn = !isMyTurn;
+
 	isfinishGame();
 }
 
 function isfinishGame() {
 	let winner = checkWin();
-	let haveEmptyCell = map.some((row) => row.includes(''));
-	if (!winner && !haveEmptyCell) {
-		winnerText.innerText = 'DRAW !';
-		restartPage.classList.add('show');
-		allCells.forEach((cell) => {
-			cell.innerHTML = '';
-			cell.removeEventListener('click', handleClick);
+	let haveEmptyCell = map.some((row) => row.includes(' '));
+	if (!haveEmptyCell) {
+		if (!winner) {
+			winnerText.innerText = 'DRAW !';
+			restartPage.classList.add('show');
 			return 1;
-		});
+		}
 	} else {
 		if (winner) {
 			if (winner == myMove) winnerText.innerText = 'You Win !';
@@ -117,10 +115,6 @@ function isfinishGame() {
 				winnerText.innerText = 'You lost';
 			}
 			restartPage.classList.add('show');
-			allCells.forEach((cell) => {
-				cell.innerHTML = '';
-				cell.removeEventListener('click', handleClick);
-			});
 			return 1;
 		}
 	}
@@ -140,3 +134,7 @@ function checkWin() {
 	});
 	return winner;
 }
+
+restartBtn.addEventListener('click', () => {
+	socket.emit('reset', roomId);
+});
