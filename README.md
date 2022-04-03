@@ -1,7 +1,7 @@
-# rock-paper-scissors-online
+# XoX
 
 
-<h1>How To play ? <h1>
+<h2> How To play ? <h2>
   
   
 -  First create room by giving it name.
@@ -14,4 +14,4 @@
   
   
  
-You can play on : "https://taskagitmakasonline.herokuapp.com/"
+You can play on : "https://xoxclient.herokuapp.com/"
